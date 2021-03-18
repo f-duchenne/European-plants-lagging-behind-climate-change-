@@ -15,26 +15,37 @@ library(phylotools)
 library(caper)
 library(optimx)
 library(gridExtra)
+library(corrplot)
+library(phylosignal)
+library(phylobase)
 
+###THIS SCRIPT (1) fits models at european scales (1.1) LMER and then (1.2) PGLS. It also (2) fits models by biogeographic regions.
+
+#import data:
 setwd(dir="C:/Users/duche/Documents/3eme papier - climatic_debt/script/climatic_debt/data_and_raster_needed")
 liste=fread("SCI_occupancy_traits_Europe.txt",header=T)
+#make sur blank are NA
 liste$life_span_cat[liste$life_span_cat==""]=NA
+#keep only species with at least 20 years of data:
 liste=subset(liste,nb_year>=20)
 dim(liste)
 mean(liste$trend)
 sd(liste$trend)/sqrt(nrow(liste))
 dim(subset(liste,trend<0 & Pr...z..<0.05))
 
+#plot of occupancy trends, invasive vs non-invasive:
 liste$type[liste$type=="wild"]="non-invasive"
 ggplot(data=liste,aes(x=trend,fill=type))+geom_density(alpha=0.6)+
 geom_vline(xintercept=0,col="red")+scale_fill_manual(values=c("gold4","dodgerblue4"))+theme_bw()+
 theme(panel.grid.minor=element_blank(),strip.background = element_blank(),
 legend.title = element_blank(),plot.title=element_text(size=14,face="bold"))+
 xlab("Occupancy trends (/year)")
+
+#exclude invasive for the following parts:
 liste=subset(liste,type!="invasive")
 
 
-library(corrplot)
+#table to change colnames for figures:
 labs=data.frame(varia=c("ann_mean","prec","prec_min","min_temp","max_temp","prec_max",
 "base_ann_mean","base_max_temp","base_min_temp","base_prec","base_prec_min","base_prec_max",
 "nitrogen_moy","dep_poll","moisture_moy",
@@ -47,6 +58,8 @@ vari=c("Trend of SCI annual T°C","Trend of SCI annual Prec.",
 "Aquatic and wetland","Grassland","Heathland and tundra","Woodland",
 "Farmland","Urban areas","Sparsely vegetated land"))
 
+
+#select columns:
 liste2=liste[,c("trend","trend_err","family","phylum","order","genus","class","max_temp","ann_mean","ann_mean","prec",
 "prec_min","min_temp","max_temp","prec_max",
 "base_ann_mean","base_max_temp","base_min_temp","base_prec","base_prec_min","base_prec_max",
@@ -54,17 +67,21 @@ liste2=liste[,c("trend","trend_err","family","phylum","order","genus","class","m
 "nitrogen_moy","dep_poll","moisture_moy","life_span_cat",
 "Alpine","Anatolian","Arctic","Atlantic","BlackSea","Boreal","Continental","Mediterranean","Pannonian",
 "Steppic")]
+#summing all habitat affinity to 1:
 liste2[,c("aqua","Grasslands","Heathland","Woodland","Agricole","Urbain","Roche")]=
 liste2[,c("aqua","Grasslands","Heathland","Woodland","Agricole","Urbain","Roche")]/
 apply(liste2[,c("aqua","Grasslands","Heathland","Woodland","Agricole","Urbain","Roche")],1,sum)
+#sacle variables:
 liste2[,c("ann_mean","prec","prec_min","min_temp","max_temp","prec_max",
 "base_ann_mean","base_max_temp","base_min_temp","base_prec","base_prec_min","base_prec_max",
 "nitrogen_moy","dep_poll","moisture_moy")]=as.data.frame(scale(
 liste2[,c("ann_mean","prec","prec_min","min_temp","max_temp","prec_max",
 "base_ann_mean","base_max_temp","base_min_temp","base_prec","base_prec_min","base_prec_max",
 "nitrogen_moy","dep_poll","moisture_moy")]))
+#remove all NA:
 liste2=na.omit(liste2)
 
+#correlations among variables:
 listeb=as.data.frame(liste2)
 for(i in which(names(listeb) %in% labs$varia)){
 names(listeb)[i]=as.character(labs$vari[labs$varia==names(listeb)[i]])}
@@ -79,11 +96,13 @@ corrplot(cor(na.omit(listeb[,c("Trend of SCI annual T°C","Trend of SCI annual P
 order = "hclust",method="number",number.cex=0.65)
 dev.off();
 
+#LMER at European scale:
 model2=lmer(trend~(Urbain+Agricole+Heathland+aqua+Grasslands+Roche)+
 (base_ann_mean+base_prec)+(ann_mean+prec)+moisture_moy+nitrogen_moy+dep_poll+
 life_span_cat+(1|class/family),data=liste2,weights=1/trend_err)
 print(warnings())
 
+#extract results:
 dat1=as.data.frame(summary(model2)$coeff)
 dat1$varia=rownames(dat1)
 dat1=rbind(dat1,dat1[1,],dat1[1,])
@@ -112,9 +131,10 @@ dat1[,1:2]=dat1[,1:2]
 
 MuMIn::r.squaredGLMM(model2)
 
-#PHYLOGENIE
+
+#import phylogenie for the PGLS:
 a=read.tree("DaPhnE_01.tre")
-cod=read.table("code_canons.txt",sep="\t",header=T)
+cod=read.table("code_canons.txt",sep="\t",header=T) #import matching codes
 cod=subset(cod,rang=="SPECIES")
 names(cod)[1]="noms_phylo"
 cod=cod[!duplicated(cod$canon),]
@@ -133,40 +153,47 @@ head(liste[duplicated(liste$code),])
 liste2=liste[!is.na(liste$code),]
 liste2=liste[!duplicated(liste2$code),]
 
+# match data and phylogeny:
 p3d=comparative.data(a,as.data.frame(liste2[!duplicated(liste2$code),]),code,vcv=TRUE,na.omit=F)
-#svl<-setNames(p3d$data$trend,rownames(p3d$data))
-library(phylosignal)
-library(phylobase)
-#p4d=phylo4d(as.phylo(p3d$phy),tip.data=svl)
-#obj=phyloSignal(p4d, methods = c("Lambda"), reps=999, W = NULL)
+
+#Calculate rough phylogenetic signal:
+svl<-setNames(p3d$data$trend,rownames(p3d$data))
+p4d=phylo4d(as.phylo(p3d$phy),tip.data=svl)
+obj=phyloSignal(p4d, methods = c("Lambda"), reps=999, W = NULL)
 
 
-
+#select columns again:
 liste2=liste[,c("trend","trend_err","family","phylum","order","max_temp","ann_mean","prec","prec_min",
 "base_ann_mean","base_prec",
 "aqua","Grasslands","Heathland","Woodland","Agricole","Urbain","Roche",
 "nitrogen_moy","dep_poll","moisture_moy","life_span_cat",
 "Alpine","Anatolian","Arctic","Atlantic","BlackSea","Boreal","Continental","Mediterranean","Pannonian",
 "Steppic","code")]
+#summing all habitat affinity to 1:
 liste2[,c("aqua","Grasslands","Heathland","Woodland","Agricole","Urbain","Roche")]=
 liste2[,c("aqua","Grasslands","Heathland","Woodland","Agricole","Urbain","Roche")]/
 apply(liste2[,c("aqua","Grasslands","Heathland","Woodland","Agricole","Urbain","Roche")],1,sum)
+#scale variables:
 liste2[,c("max_temp","ann_mean","prec","prec_min",
 "base_ann_mean","base_prec",
 "nitrogen_moy","dep_poll","moisture_moy")]=as.data.frame(scale(
 liste2[,c("max_temp","ann_mean","prec","prec_min",
 "base_ann_mean","base_prec",
 "nitrogen_moy","dep_poll","moisture_moy")]))
+#remove NAs:
 liste2=na.omit(liste2)
+#remove species that do not match to the phylogeny:
 liste2=liste2[!is.na(liste2$code),]
 liste2=liste2[!duplicated(liste2$code),]
+# match data and phylogeny:
 p3d=comparative.data(a,as.data.frame(liste2),code,vcv=TRUE)
 
+#PGLS at European scale:
 modelt=pgls(trend~(Urbain+Agricole+Heathland+aqua+Grasslands+Roche)+
 (base_ann_mean+base_prec)+(ann_mean+prec)+moisture_moy+nitrogen_moy+dep_poll+
 life_span_cat,data=p3d,lambda='ML')
 
-
+#extract results
 dat=as.data.frame(summary(modelt)$coeff)
 dat$varia=rownames(dat)
 dat=rbind(dat,dat[1,],dat[1,])
@@ -216,6 +243,7 @@ dat$vari=factor(dat$vari,c("                   Annual T°C","Annual Prec.","Prec
 dat$cate=factor(dat$cate,c("Climatic debt","Historical \n Climatic niche","Habitat affinity\n (for score = 1)",
 "Species traits","Lifespan"))
 
+#PLot results of LMER and PGLS at European scale:
 pl1=ggplot(data=dat[dat$cate %in% c("Climatic debt","Historical \n Climatic niche","Species traits"),],
 aes(x=vari,y=Estimate,col=signi,group=cate,shape=Model))+
 geom_pointrange(aes(ymin=lwr,ymax=upr),position=position_dodge2(width=0.3))+theme_bw()+
@@ -236,6 +264,7 @@ guides(colour=FALSE)+ggtitle("")
 
 grid.arrange(pl1,pl1b,ncol=2)
 
+#Plot occupancy trends:
 liste$pval=">0.05"
 liste$pval[liste$Pr...z..<0.05]="<0.05"
 liste$pval=factor(liste$pval,c(">0.05","<0.05"))
@@ -246,8 +275,8 @@ theme(panel.grid.minor=element_blank(),strip.background = element_blank(),
 legend.title = element_blank(),legend.position="none",plot.title=element_text(size=14,face="bold"))+
 xlab("Occupancy trends (logit(occupancy)/year)")+ylab("Number of species")+ggtitle("a")
 
-
-##LA MEME CHOSE PAR ZONES:
+##########################################################################################################################
+## Same thing by biogeographic region:
 setwd(dir="C:/Users/Francois/Documents/gabi plantes/script/climatic_debt/data_and_raster_needed")
 liste=fread("SCI_occupancy_traits_region.txt",header=T)
 liste$life_span_cat[liste$life_span_cat==""]=NA
@@ -302,11 +331,12 @@ liste2=liste[,c("trend","trend_err","code","nsite","nb_year","region","species",
 "aqua","Grasslands","Heathland","Woodland","Agricole","Urbain","Roche",
 "nitrogen_moy","dep_poll","moisture_moy","life_span_cat",
 "Alpine","Anatolian","Arctic","Atlantic","BlackSea","Boreal","Continental","Mediterranean","Pannonian",
-"Steppic","type","dep_poll")]
+"Steppic","type")]
 liste2=na.omit(liste2)
-# liste2$type=factor(liste2$type,c("wild","invasive"))
 liste2=subset(liste2,nb_year>=20)
 summary(as.factor(liste2$region))
+
+# LOOP OF MODELS, ONE BY REGION
 lili=c("Atlantic","Continental","Mediterranean","Alpine","Boreal")
 datf=NULL
 for(i in 1:length(lili)){
@@ -423,7 +453,7 @@ datf$cate=factor(datf$cate,c("Climatic debt","Historical \n Climatic niche","Hab
 "Species traits","Lifespan"))
 
 
-
+#PLOT THE RESULTS
 pl1r=ggplot(data=datf[datf$cate %in% c("Climatic debt","Historical \n Climatic niche","Species traits"),],
 aes(x=vari,y=Estimate,col=region,group=region,shape=Model))+
 geom_pointrange(aes(ymin=lwr,ymax=upr),position=position_dodge2(width=0.3),alpha=0.8)+theme_bw()+

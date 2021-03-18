@@ -1,9 +1,10 @@
-#ASSOCIER LES DONNES CLIMATIQUES AUX DONNEES D'OCCURENCE
+#ASSOCIATE PLANT RECORDS WITH CLIMATIC AND LAND USE DATA
 library(data.table)
 library(rgbif)
 library(dplyr)
 library(raster)
 memory.limit(size = 1e9)
+#LAND USE DATA
 setwd(dir="C:/Users/Francois/Documents/land use change/Ecosystem_types_of_Europe_Terrestrial/Ecosystem types of Europe - version 3.1 Full map")
 aqua=raster(paste0("aqua.tif"))
 Grasslands=raster("Grasslands.tif")
@@ -12,9 +13,10 @@ Woodland=raster("Woodland.tif")
 Agricole=raster("Agricole.tif")
 Urbain=raster("Urbain.tif")
 Roche=raster("Roche.tif")
+#LAYER USED FOR THE REFERENCE RESOLUTION
 setwd(dir="C:/Users/Francois/Documents/land use change/biogeographic_regions")
 Bio=raster("BiogeoRegions2016_raster.tif")
-
+#data:
 setwd(dir="C:/Users/Francois/Documents/gabi plantes/data")
 res=fread("number_data_by_grid_cell_by_year_coord_round_to_10km.txt",sep="\t",head=T)
 noms=c("ann_mean","diurn_range","max_temp","min_temp","prec","prec_max","prec_min")
@@ -23,7 +25,7 @@ all[,c(noms,"aqua","Grasslands","Heathland","Woodland","Agricole","Urbain","Roch
 
 
 for(j in unique(all$year)){
-ban=which(c(1901:2014)==j) # with thefirst and the last layer corresponding to theyears 1901 and 2014
+ban=which(c(1901:2014)==j) # with the first and the last layer corresponding to the years 1901 and 2014, respectively
 setwd(dir="C:/Users/Francois/Documents/land use change/time_series_bioclim")
 r=stack(paste0("bioclim_variables_year_",ban,"_10km_eumedclim.tif"))
 r=projectRaster(r, projectExtent(r,projection(aqua)))
@@ -57,7 +59,7 @@ if(j==1951){allf=res}else{allf=rbind(allf,res)}
 }
 
 dim(allf)
-#Petit bout pour récupérer ce qui est un peu loin en mer mais qui match que les raster de température:
+#A small trick to keep data located in the sea, very close to the cost because of coordinates rounding:
 setwd(dir="C:/Users/Francois/Documents/land use change/biogeographic_regions")
 Bio=raster("BiogeoRegions2016_raster.tif")
 Bio<- aggregate(Bio,fact=5,fun=modal,expand=T,na.rm=T)
@@ -69,12 +71,12 @@ points(Latitude2~Longitude2,data=subset(allf,is.na(zone)))
 Bio<- aggregate(Bio,fact=2,fun=modal,expand=T,na.rm=T)
 allf$zone[is.na(allf$zone)]=raster::extract(Bio, as(sf_pts[is.na(allf$zone),], 'Spatial'))
 
-#rajouter le nom de la zone:
+#add the name of the biogeographic region:
 bioreg=data.frame(zone=c(1,2,3,4,5,6,7,8,9,10,11,12),region=c("Alpine","Anatolian","Arctic","Atlantic",
 "BlackSea","Boreal","Continental","Macaronesia","Mediterranean","Outside","Pannonian","Steppic"))
 bioreg=as.data.table(bioreg)
 allf2=merge(allf,bioreg,by="zone",all.x=T,all.y=F)
-#exporter le tout
+#export the overall database:
 setwd(dir="C:/Users/Francois/Documents/gabi plantes/data")
 fwrite(allf2,paste0("climatic_indexes_by_grid_cell_by_year.txt"),sep="\t",row.names=F)
 

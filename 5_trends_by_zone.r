@@ -1,4 +1,7 @@
+
 #MAKE OCCUPANCY MATRICES:
+
+
 library(data.table)
 library(rgbif)
 library(dplyr)
@@ -17,12 +20,7 @@ res=res[!is.na(res$speciesKey),]
 dim(res)
 res=res %>% group_by(Latitude2,Longitude2) %>% mutate(nyr=n_distinct(year))
 res=res[res$nyr>=2,]
-# bidon=res %>%  dplyr::select(Latitude2,Longitude2) %>%  distinct
-# setwd(dir="C:/Users/Francois/Documents/land use change/elevation")
-# elev=raster("elevation1x1_new.tif")
-# sf_pts <- sf::st_transform(sf::st_as_sf(bidon, coords = c('Longitude2','Latitude2'), crs=4326), raster::projection(elev)) # match the same projection to species obs points and raster
-# bidon$elev=raster::extract(elev, as(sf_pts, 'Spatial'))
-# res=merge(as.data.table(res),as.data.table(bidon),by=c('Longitude2','Latitude2'))
+
 res$site=paste(res$Latitude2,res$Longitude2,sep="-")
 liste=unique(res$speciesKey)
 stepsize=500
@@ -39,7 +37,7 @@ fwrite(objformat,paste0("objformat_",i,"_",i2,".txt"),sep="\t",row.names=F)
 }
 
 #################################################
-
+#CALCULATE TRENDS
 .libPaths(c("/home/duchenne/R/x86_64-pc-linux-gnu-library/3.4/",.libPaths()))
 library(dplyr)
 library(data.table)
@@ -113,11 +111,6 @@ result$nann=length(unique(res2$year))
 resultf=rbind(resultf,result)
 }
 
-#names(result2)=paste0("bam_",names(result2))
-#result=cbind(result,result2)
-
-#resultMCMC=rbind(result,result)
-#print(e)
 return(resultf)
 }
 write.table(resultMCMC,paste("resultsMCMC_lin_zones_",deb,end,".txt",sep="_"),sep="\t",row.names=F)

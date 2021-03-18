@@ -1,4 +1,7 @@
 ############################################################################
+
+###### PREDICT ######
+
 library(data.table)
 library(rgbif)
 library(raster)
@@ -159,6 +162,9 @@ dat$debt_pgls=dat$ann_mean*dat$debt_temp_pgls+dat$prec*dat$debt_prec_pgls
 fwrite(dat,"climatic_debt_by_regions.txt")
 
 ############################################################################
+
+###### MAP THE PREDICTS ######
+
 library(data.table)
 library(rgbif)
 library(raster)
@@ -302,7 +308,7 @@ pdf("fig_S9.pdf",width=15,height=6)
 grid.arrange(pl1,pl2,pl3,ncol=3)
 dev.off();
 
-#ENCONSIDERANT QUE LES EFFETS SIGNIFICATIFS:
+#ONLY WITH SIGNIFICANT EFFECTS:
  library('scales')
 sf_pts$temp_contrib=(c(sf_pts$ann_mean*sf_pts$debt_temp_pgls)+c(sf_pts$ann_mean*sf_pts$debt_temp))/2
 sf_pts$prec_contrib=(c(sf_pts$prec*sf_pts$debt_prec_pgls)+c(sf_pts$prec*sf_pts$debt_prec))/2
