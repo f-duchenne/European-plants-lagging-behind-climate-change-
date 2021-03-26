@@ -22,7 +22,7 @@ library(phylobase)
 ###THIS SCRIPT (1) fits models at european scales (1.1) LMER and then (1.2) PGLS. It also (2) fits models by biogeographic regions.
 
 #import data:
-setwd(dir="C:/Users/duche/Documents/3eme papier - climatic_debt/script/climatic_debt/data_and_raster_needed")
+setwd(dir="C:/Users/Duchenne/Documents/3eme papier - climatic_debt/script/climatic_debt/data_and_raster_needed")
 liste=fread("SCI_occupancy_traits_Europe.txt",header=T)
 #make sur blank are NA
 liste$life_span_cat[liste$life_span_cat==""]=NA
@@ -129,9 +129,6 @@ dat1$Estimate[dat1$varia %in% c("Urbain","Agricole","Heathland","aqua","Grasslan
 dat1$Model="LME"
 dat1[,1:2]=dat1[,1:2]
 
-MuMIn::r.squaredGLMM(model2)
-
-
 #import phylogenie for the PGLS:
 a=read.tree("DaPhnE_01.tre")
 cod=read.table("code_canons.txt",sep="\t",header=T) #import matching codes
@@ -192,6 +189,8 @@ p3d=comparative.data(a,as.data.frame(liste2),code,vcv=TRUE)
 modelt=pgls(trend~(Urbain+Agricole+Heathland+aqua+Grasslands+Roche)+
 (base_ann_mean+base_prec)+(ann_mean+prec)+moisture_moy+nitrogen_moy+dep_poll+
 life_span_cat,data=p3d,lambda='ML')
+
+summary(modelt)
 
 #extract results
 dat=as.data.frame(summary(modelt)$coeff)
