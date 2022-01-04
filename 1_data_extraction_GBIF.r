@@ -27,7 +27,7 @@ for (i in 2:length(vec)) {
 cle=occ_download(paste0("taxonKey = ",gsub(" ","",toString(tab$speciesKey[tab$part==vec[i]]))),
     'hasCoordinate = TRUE', 'hasGeospatialIssue = FALSE',"year >= 1950","year <= 2014",
 	geom_param,
-    user = "fduchenne", pwd="ouessant",email = "francois.duchenne@mnhn.fr")
+    user = "fduchenne", pwd="XXXXX",email = "XXXXXX")
 cle_li[[i]]=cle[1]
 while(occ_download_meta(cle_li[[i]][1])$status!="SUCCEEDED"){
 Sys.sleep(60) 
